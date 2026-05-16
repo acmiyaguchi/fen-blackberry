@@ -28,13 +28,24 @@ just type `fen`. Re-run after a BerryCore re-extract (it wipes added bins).
 `make help` lists every target. Stages 1/2/4 run in the BBNDK FHS; stage 3
 (arch-independent Lua payload + ZIP) runs in this repo's `nix develop` shell.
 
-## Runtime caveat (not a build issue)
+## Modern-TLS / CA fix (resolved)
 
-BB10's static `libcurl` is 7.24.0 (2012) with vintage OpenSSL. Live TLS to
-modern `api.openai.com`/`api.anthropic.com` may fail handshake/CA validation.
-Preferred mitigation: a host-side TLS-terminating proxy over USB-net (the
-device is offline-by-design in this tree). The mock smoke test avoids TLS
-entirely.
+BB10's stock CA store is 2012-vintage, so the device's libcurl/OpenSSL
+failed cert verification on current endpoints (Codex OAuth token exchange,
+`api.openai.com`) with *"Peer certificate cannot be authenticated"*.
+
+Fixed by shipping a current CA bundle and pointing OpenSSL at it:
+
+```sh
+make ca               # fetch curl.se/ca/cacert.pem -> device
+make install-wrapper  # wrapper exports SSL_CERT_FILE to that bundle
+```
+
+Run fen via the BerryCore `fen` wrapper (not the raw binary) so
+`SSL_CERT_FILE` is set. Verified: `fen --provider openai` reaches
+`api.openai.com` and gets HTTP 401 (TLS+cert OK), not a cert error — so
+`fen --provider openai-codex login` works. The TLS handshake itself
+negotiates fine; only the trust store needed updating.
 
 See `/home/anthony/.claude/plans/yeah-lets-do-that-calm-trinket.md` for the
 full plan and `../docs/device-ssh-transfer.md` for the deploy recipe.
