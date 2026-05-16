@@ -10,13 +10,15 @@ Nix's only job is pure, reproducible materialization of the exact dependency
 *sources* fen's own build uses (`nixpkgs.follows = "fen/nixpkgs"`). The qcc
 cross-compile runs **outside Nix**, inside the parent flake's BBNDK FHS shell
 (`nix run /mnt/data/fun/blackberry#shell -- …`). Link model: **partial-static**
-— `libcurl/ssl/crypto/z` static from the QNX sysroot, QNX libc dynamic.
+— our code and `liblua.a` are baked in; BB10's platform `libcurl`/TLS stack
+and QNX libc are dynamic.
 
 ```sh
 make fen             # deps -> stage1(Lua) -> stage2(C) -> stage3(payload) -> stage4(link)
 make scp             # deploy build/fen to /accounts/1000/shared/documents/
 make install-wrapper # `fen` wrapper into BerryCore bin -> on PATH in Term49
-make smoke           # on-device fen --version (no network)
+make smoke           # on-device fen --version/--help (no network)
+make smoke-mock      # on-device --print via host OpenAI mock (no API spend)
 ```
 
 `make install-wrapper` drops a 2-line wrapper at
@@ -34,18 +36,21 @@ BB10's stock CA store is 2012-vintage, so the device's libcurl/OpenSSL
 failed cert verification on current endpoints (Codex OAuth token exchange,
 `api.openai.com`) with *"Peer certificate cannot be authenticated"*.
 
-Fixed by shipping a current CA bundle and pointing OpenSSL at it:
+Fixed by shipping a current CA bundle, adding live OpenAI-host intermediates
+for old-OpenSSL path building, and running fen through the BerryCore wrapper
+that exports the bundle path:
 
 ```sh
-make ca               # fetch curl.se/ca/cacert.pem -> device
-make install-wrapper  # wrapper exports SSL_CERT_FILE to that bundle
+make ca               # build + deploy build/cacert.pem -> device
+make install-wrapper  # wrapper exports SSL_CERT_FILE/CURL_CA_BUNDLE
 ```
 
-Run fen via the BerryCore `fen` wrapper (not the raw binary) so
-`SSL_CERT_FILE` is set. Verified: `fen --provider openai` reaches
-`api.openai.com` and gets HTTP 401 (TLS+cert OK), not a cert error — so
-`fen --provider openai-codex login` works. The TLS handshake itself
-negotiates fine; only the trust store needed updating.
+Run fen via the BerryCore `fen` wrapper (not the raw binary) so the CA env is
+set. Since upstream `fen` v0.6.2, the native HTTP backend explicitly honors
+`CURL_CA_BUNDLE` / `SSL_CERT_FILE` via `CURLOPT_CAINFO`. Verified with
+`fen eval`: HTTPS to `example.com`, `api.openai.com`, and
+`auth.openai.com/oauth/token` reaches HTTP status responses (TLS+cert OK),
+not transport cert errors — so `fen --login openai-codex` can complete.
 
 See `/home/anthony/.claude/plans/yeah-lets-do-that-calm-trinket.md` for the
 full plan and `../docs/device-ssh-transfer.md` for the deploy recipe.

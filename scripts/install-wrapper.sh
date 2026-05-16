@@ -14,11 +14,11 @@ CACERT_DEVICE="${CACERT_DEVICE:-/accounts/1000/shared/documents/cacert.pem}"
 trap bb_close EXIT
 bb_open
 
-# The wrapper also points OpenSSL/libcurl at a modern CA bundle: BB10's stock
-# trust store is 2012-vintage and fails verification on current TLS endpoints
-# (e.g. the Codex OAuth token-exchange host). fen's system libcurl uses the
-# OpenSSL backend, which honors SSL_CERT_FILE when CAINFO is unset. Both vars
-# are overridable from the caller's environment.
+# The wrapper also points fen's native libcurl backend at a modern CA bundle:
+# BB10's stock trust store is 2012-vintage and fails verification on current
+# TLS endpoints (e.g. the Codex OAuth token-exchange host). Since fen v0.6.2,
+# fen_http.c honors CURL_CA_BUNDLE / SSL_CERT_FILE by setting CURLOPT_CAINFO.
+# Both vars are overridable from the caller's environment.
 stage="$(mktemp -d)"
 cat > "$stage/fen" <<EOF
 #!$BERRYCORE_BIN/bash

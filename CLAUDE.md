@@ -13,8 +13,9 @@ modified** — it is `inputs.fen` (flake input pin); `nixpkgs.follows =
   A Nix sandbox cannot reach the parent FHS (no `/mnt`, no nested user-ns).
 - Stage 3 (Lua payload + deterministic ZIP) is arch-independent and runs in
   this repo's devShell — the BBNDK FHS lacks `zip`.
-- Link is partial-static: `-Wl,-Bstatic -llua -lcurl -lssl -lcrypto -lz
-  -Wl,-Bdynamic -lm` (QNX libc dynamic).
+- Link is partial-static: `-Wl,-Bstatic -llua -Wl,-Bdynamic -lcurl -lm`.
+  Our code and Lua are baked in; BB10's platform libcurl/TLS stack and QNX
+  libc are dynamic.
 
 ## The 4 stages mirror fen/nix/artifacts.nix 1:1
 

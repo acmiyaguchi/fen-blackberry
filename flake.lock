@@ -6,11 +6,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1778919414,
-        "narHash": "sha256-c6YXZ2p/shg1B7LYA3j/nhFvPKZFay3ArbreBQ/H+ZI=",
+        "lastModified": 1778962722,
+        "narHash": "sha256-lzOLtByQoGJ7xt2kmS8IvrGyanY5l0CCA2xF7bWYAnw=",
         "ref": "refs/heads/main",
-        "rev": "65cff642a5c925db1ba82e132fddaa1134b58d74",
-        "revCount": 358,
+        "rev": "f5273878cba5641817aad0f08ce0cfb04e3e00b9",
+        "revCount": 360,
         "type": "git",
         "url": "file:///mnt/data/fun/blackberry/fen"
       },

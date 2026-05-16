@@ -6,7 +6,7 @@
 
 include config.mk
 
-.PHONY: help deps stage1 stage2 stage3 stage4 fen scp ca install-wrapper smoke clean
+.PHONY: help deps stage1 stage2 stage3 stage4 fen scp ca install-wrapper smoke smoke-mock clean
 
 help:
 	@echo 'fen-blackberry targets:'
@@ -17,9 +17,10 @@ help:
 	@echo '  stage4  — qcc: zip + partial-static link + append [BBNDK FHS]'
 	@echo '  fen     — deps stage1 stage2 stage3 stage4 (full build)'
 	@echo '  scp     — deploy build/fen to the device (scripts/deploy.sh)'
-	@echo '  ca      — fetch + deploy a modern CA bundle (fixes TLS verify)'
+	@echo '  ca      — build + deploy modern CA bundle (fixes TLS verify)'
 	@echo '  install-wrapper — `fen` wrapper into BerryCore bin (Term49 PATH)'
-	@echo '  smoke   — credit-free on-device --print (scripts/smoke-device.sh)'
+	@echo '  smoke   — on-device --version/--help (no network)'
+	@echo '  smoke-mock — on-device --print via host OpenAI mock (no API spend)'
 	@echo '  clean   — rm -rf build/'
 
 deps:
@@ -46,6 +47,9 @@ install-wrapper:
 
 smoke:
 	bash scripts/smoke-device.sh
+
+smoke-mock:
+	bash scripts/smoke-device.sh mock
 
 clean:
 	rm -rf build

@@ -3,7 +3,7 @@
 # Parent flake providing the BBNDK FHS shell (`#shell` -> bb-shell-entry,
 # sources bbndk-env_10_3_1_995.sh then exec "$@").
 PARENT_FLAKE := /mnt/data/fun/blackberry
-BB_SHELL     := nix run $(PARENT_FLAKE)#shell --
+BB_SHELL     := nix run $(PARENT_FLAKE)\#shell --
 
 # The fen checkout (only used by gen-version-lua.sh for the version stamp;
 # the build itself consumes deps/fen-src materialized by `nix build .#deps`).
