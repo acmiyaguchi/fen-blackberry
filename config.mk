@@ -20,3 +20,7 @@ DEPLOY_DIR  ?= /accounts/1000/shared/documents
 # BerryCore's bin is first on PATH in every Term49 shell (env.sh). The
 # `fen` wrapper goes here so it's a first-class on-PATH command.
 BERRYCORE_BIN ?= /accounts/1000/shared/misc/berrycore/bin
+# BB10's stock CA bundle is 2012-vintage; modern TLS endpoints fail cert
+# verification. Ship a current Mozilla bundle and point OpenSSL/libcurl at it.
+CACERT_URL    ?= https://curl.se/ca/cacert.pem
+CACERT_DEVICE ?= /accounts/1000/shared/documents/cacert.pem

@@ -9,13 +9,21 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 DEPLOY_DIR="${DEPLOY_DIR:-/accounts/1000/shared/documents}"
 BERRYCORE_BIN="${BERRYCORE_BIN:-/accounts/1000/shared/misc/berrycore/bin}"
+CACERT_DEVICE="${CACERT_DEVICE:-/accounts/1000/shared/documents/cacert.pem}"
 
 trap bb_close EXIT
 bb_open
 
+# The wrapper also points OpenSSL/libcurl at a modern CA bundle: BB10's stock
+# trust store is 2012-vintage and fails verification on current TLS endpoints
+# (e.g. the Codex OAuth token-exchange host). fen's system libcurl uses the
+# OpenSSL backend, which honors SSL_CERT_FILE when CAINFO is unset. Both vars
+# are overridable from the caller's environment.
 stage="$(mktemp -d)"
 cat > "$stage/fen" <<EOF
 #!$BERRYCORE_BIN/bash
+export SSL_CERT_FILE="\${SSL_CERT_FILE:-$CACERT_DEVICE}"
+export CURL_CA_BUNDLE="\${CURL_CA_BUNDLE:-\$SSL_CERT_FILE}"
 exec $DEPLOY_DIR/fen "\$@"
 EOF
 chmod +x "$stage/fen"
