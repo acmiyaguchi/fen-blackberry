@@ -6,7 +6,7 @@
 
 include config.mk
 
-.PHONY: help deps stage1 stage2 stage3 stage4 fen scp smoke clean
+.PHONY: help deps stage1 stage2 stage3 stage4 fen scp install-wrapper smoke clean
 
 help:
 	@echo 'fen-blackberry targets:'
@@ -17,6 +17,7 @@ help:
 	@echo '  stage4  — qcc: zip + partial-static link + append [BBNDK FHS]'
 	@echo '  fen     — deps stage1 stage2 stage3 stage4 (full build)'
 	@echo '  scp     — deploy build/fen to the device (scripts/deploy.sh)'
+	@echo '  install-wrapper — `fen` wrapper into BerryCore bin (Term49 PATH)'
 	@echo '  smoke   — credit-free on-device --print (scripts/smoke-device.sh)'
 	@echo '  clean   — rm -rf build/'
 
@@ -35,6 +36,9 @@ fen: deps stage1 stage2 stage3 stage4
 
 scp:
 	bash scripts/deploy.sh
+
+install-wrapper:
+	bash scripts/install-wrapper.sh
 
 smoke:
 	bash scripts/smoke-device.sh

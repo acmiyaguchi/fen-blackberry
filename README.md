@@ -13,10 +13,17 @@ cross-compile runs **outside Nix**, inside the parent flake's BBNDK FHS shell
 — `libcurl/ssl/crypto/z` static from the QNX sysroot, QNX libc dynamic.
 
 ```sh
-make fen      # deps -> stage1(Lua) -> stage2(C) -> stage3(payload) -> stage4(link)
-make scp      # deploy build/fen to the device
-make smoke    # on-device fen --version (no network)
+make fen             # deps -> stage1(Lua) -> stage2(C) -> stage3(payload) -> stage4(link)
+make scp             # deploy build/fen to /accounts/1000/shared/documents/
+make install-wrapper # `fen` wrapper into BerryCore bin -> on PATH in Term49
+make smoke           # on-device fen --version (no network)
 ```
+
+`make install-wrapper` drops a 2-line wrapper at
+`/accounts/1000/shared/misc/berrycore/bin/fen` that execs the real binary by
+absolute path (required: fen finds its appended Lua zip via `argv[0]`).
+BerryCore's `env.sh` puts that dir first on PATH, so in any Term49 shell you
+just type `fen`. Re-run after a BerryCore re-extract (it wipes added bins).
 
 `make help` lists every target. Stages 1/2/4 run in the BBNDK FHS; stage 3
 (arch-independent Lua payload + ZIP) runs in this repo's `nix develop` shell.

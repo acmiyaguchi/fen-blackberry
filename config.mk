@@ -17,3 +17,6 @@ RANLIB := ntoarmv7-gcc-ranlib
 # Device deploy (overridable via env / .env). USB-net dev-mode defaults.
 BB_DEVICE   ?= 169.254.0.1
 DEPLOY_DIR  ?= /accounts/1000/shared/documents
+# BerryCore's bin is first on PATH in every Term49 shell (env.sh). The
+# `fen` wrapper goes here so it's a first-class on-PATH command.
+BERRYCORE_BIN ?= /accounts/1000/shared/misc/berrycore/bin
