@@ -73,6 +73,12 @@ stage3() { # Lua payload + version.lua + deterministic ZIP (≙ luaTree+zip).
   command -v fennel >/dev/null 2>&1 || { echo "error: no 'fennel'; run via 'make stage3' (devShell)" >&2; exit 1; }
   command -v zip    >/dev/null 2>&1 || { echo "error: no 'zip'; run via 'make stage3' (devShell)" >&2; exit 1; }
   rm -rf "$WORK"; cp -R "$DEPS/fen-src" "$WORK"; chmod -R u+w "$WORK"
+  # Apply port patches to the writable working copy (fen upstream untouched).
+  for p in "$ROOT"/patches/*.patch; do
+    [ -e "$p" ] || continue
+    echo ">> applying $(basename "$p")"
+    patch -p1 -d "$WORK" --fuzz=3 < "$p"
+  done
   ( cd "$WORK" && fennel scripts/fennel-build.fnl )
   mkdir -p "$WORK/packages/fen/dist/fen"
   bash "$ROOT/scripts/gen-version-lua.sh" > "$WORK/packages/fen/dist/fen/version.lua"
@@ -122,9 +128,10 @@ stage4() { # compile fen.c + kubazip, partial-static link, append ZIP (≙ fenBi
   # is a read-only /nix/store path. Also: gcc 4.6 defaults to gnu89; fen.c
   # and zip.c use C99 (decl-in-for) -> -std=gnu99. _QNX_SOURCE exposes
   # ftruncate/symlink prototypes used by kubazip.
+  [ -f "$WORK/packages/fen/fen.c" ] || { echo "error: run stage3 first (patched fen.c missing)" >&2; exit 1; }
   $CC -O2 -Wall -std=gnu99 \
     -I"$LUA/include" -I"$ROOT/build/kubazip-inc" -I"$(dirname "$KZC")" \
-    -c "$DEPS/fen-src/packages/fen/fen.c" -o "$OBJ/fen_main.o"
+    -c "$WORK/packages/fen/fen.c" -o "$OBJ/fen_main.o"
   $CC -O2 -Wall -std=gnu99 -D_QNX_SOURCE \
     -I"$ROOT/build/kubazip-inc" -I"$(dirname "$KZC")" \
     -c "$KZC" -o "$OBJ/kubazip.o"

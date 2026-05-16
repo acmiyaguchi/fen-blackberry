@@ -28,6 +28,7 @@
             pkgs.lua5_4
             pkgs.zip
             pkgs.unzip
+            pkgs.patch
             pkgs.git
             pkgs.gnumake
             pkgs.coreutils
