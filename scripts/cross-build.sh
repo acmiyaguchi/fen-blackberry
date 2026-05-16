@@ -33,9 +33,12 @@ stage1() { # Lua 5.4 static (≙ fenBinaryLua). POSIX path — QNX is not Linux.
   rm -rf "$ROOT/build/lua-src"
   cp -R "$DEPS/lua" "$ROOT/build/lua-src"; chmod -R u+w "$ROOT/build/lua-src"
   sed -i 's|#define LUA_ROOT.*|#define LUA_ROOT "/usr/"|' "$ROOT/build/lua-src/src/luaconf.h"
-  make -C "$ROOT/build/lua-src" posix \
+  # Target liblua.a directly: nixpkgs patches Lua to also build a versioned
+  # liblua.so, whose SONAME logic breaks outside nixpkgs' own build env. We
+  # only need the static archive + headers, so never invoke the .so rule.
+  make -C "$ROOT/build/lua-src/src" liblua.a \
     CC="$CC" AR="$XAR rcu" RANLIB="$XRANLIB" \
-    MYCFLAGS='-DLUA_USE_POSIX' MYLIBS='-lm'
+    MYCFLAGS='-DLUA_USE_POSIX'
   mkdir -p "$LUA/include" "$LUA/lib"
   cp "$ROOT"/build/lua-src/src/{lua.h,luaconf.h,lualib.h,lauxlib.h,lua.hpp} "$LUA/include/"
   cp "$ROOT/build/lua-src/src/liblua.a" "$LUA/lib/"
@@ -46,7 +49,10 @@ stage2() { # fen C objects (≙ fenBinaryObjects).
   need_deps; need_fhs
   local F="$DEPS/fen-src" QT="$QNX_TARGET"
   mkdir -p "$OBJ"
-  $CC -O2 -Wall -I"$LUA/include" \
+  # termbox2.h does `#define _XOPEN_SOURCE` (empty); QNX sys/platform.h only
+  # accepts 500/600/700. Its #ifndef guard lets us win from the command line.
+  # _QNX_SOURCE = QNX's expose-all-APIs macro (strerror_r, cfmakeraw, etc.).
+  $CC -O2 -Wall -D_XOPEN_SOURCE=600 -D_QNX_SOURCE -I"$LUA/include" \
     -c "$F/extensions/adapters/presenters/tui/vendor/lua_termbox2.c" -o "$OBJ/lua_termbox2.o"
   $CC -O2 -Wall -I"$LUA/include" -I"$QT/usr/include" \
     -c "$F/packages/util/vendor/fen_http.c" -o "$OBJ/fen_http.o"
@@ -88,9 +94,14 @@ stage3() { # Lua payload + version.lua + deterministic ZIP (≙ luaTree+zip).
   find "$ARROOT" -exec touch -h -d @1 {} +
   rm -f "$ZIP"
   ( cd "$ARROOT" && find . -type f -print | sort | sed 's#^\./##' | zip -q -X -9 "$ZIP" -@ )
-  unzip -l "$ZIP" | grep -qE ' fen/main\.lua$'  || { echo "error: zip missing fen/main.lua" >&2; exit 1; }
-  unzip -l "$ZIP" | grep -qE ' luarocks/'       || { echo "error: zip missing luarocks/"   >&2; exit 1; }
-  echo "stage3 ok -> $ZIP"
+  # Capture the listing once: `unzip -l | grep -q` would SIGPIPE unzip and,
+  # under `set -o pipefail`, fail the pipeline despite a match.
+  local zl; zl="$(unzip -l "$ZIP")"
+  grep -F -q 'fen/main.lua' <<<"$zl" || { echo "error: zip missing fen/main.lua" >&2; exit 1; }
+  grep -F -q 'luarocks/'    <<<"$zl" || { echo "error: zip missing luarocks/"   >&2; exit 1; }
+  grep -F -q 'fennel.lua'   <<<"$zl" || { echo "error: zip missing fennel.lua"  >&2; exit 1; }
+  grep -F -q 'dkjson.lua'   <<<"$zl" || { echo "error: zip missing dkjson.lua"  >&2; exit 1; }
+  echo "stage3 ok -> $ZIP ($(grep -c '' <<<"$zl") listing lines)"
 }
 
 stage4() { # compile fen.c + kubazip, partial-static link, append ZIP (≙ fenBinary).
@@ -106,12 +117,31 @@ stage4() { # compile fen.c + kubazip, partial-static link, append ZIP (≙ fenBi
   rm -rf "$ROOT/build/kubazip-inc"; mkdir -p "$ROOT/build/kubazip-inc/zip"
   cp "$KZH" "$ROOT/build/kubazip-inc/zip/zip.h"
 
-  $CC -O2 -Wall \
+  # Precompile fen.c and kubazip into $OBJ. Compiling straight from $DEPS
+  # fails: gcc 4.6 writes the intermediate .o next to the source, but $DEPS
+  # is a read-only /nix/store path. Also: gcc 4.6 defaults to gnu89; fen.c
+  # and zip.c use C99 (decl-in-for) -> -std=gnu99. _QNX_SOURCE exposes
+  # ftruncate/symlink prototypes used by kubazip.
+  $CC -O2 -Wall -std=gnu99 \
     -I"$LUA/include" -I"$ROOT/build/kubazip-inc" -I"$(dirname "$KZC")" \
-    "$DEPS/fen-src/packages/fen/fen.c" "$KZC" "$OBJ"/*.o \
+    -c "$DEPS/fen-src/packages/fen/fen.c" -o "$OBJ/fen_main.o"
+  $CC -O2 -Wall -std=gnu99 -D_QNX_SOURCE \
+    -I"$ROOT/build/kubazip-inc" -I"$(dirname "$KZC")" \
+    -c "$KZC" -o "$OBJ/kubazip.o"
+
+  # Partial-static: OUR code (liblua.a + kubazip/cjson/lfs/fen objects) is
+  # baked in static; the platform network/TLS stack is dynamic. BB10's
+  # libcurl.a was built with krb5/gssapi/tftp and QNX sockets, whose deps
+  # (libgssapi/libkrb5) ship shared-only — so static curl is impossible.
+  # Dynamic -lcurl resolves against the device's own maintained
+  # /usr/lib/libcurl.so.2 (an OS component). --allow-shlib-undefined defers
+  # libcurl.so's transitive deps to the runtime loader on-device.
+  $CC -O2 -Wall "$OBJ"/*.o \
     -L"$LUA/lib" -L"$TLIB" \
-    -Wl,-Bstatic -llua -lcurl -lssl -lcrypto -lz -Wl,-Bdynamic \
-    -lm -o "$OUT"
+    -Wl,-Bstatic -llua -Wl,-Bdynamic \
+    -lcurl -lm \
+    -Wl,--allow-shlib-undefined \
+    -o "$OUT"
   cat "$ZIP" >> "$OUT"
   chmod +x "$OUT"
   file "$OUT"
