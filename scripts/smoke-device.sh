@@ -11,7 +11,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$ROOT/scripts/lib-ssh.sh"
 
 DEPLOY_DIR="${DEPLOY_DIR:-/accounts/1000/shared/documents}"
-FEN_CHECKOUT="${FEN_CHECKOUT:-/mnt/data/fun/blackberry/fen}"
+FEN_CHECKOUT="${FEN_CHECKOUT:-/mnt/data/fun/bbdev/projects/fen}"
 LEVEL="${1:-0}"
 
 trap bb_close EXIT

@@ -6,17 +6,17 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1778962722,
-        "narHash": "sha256-lzOLtByQoGJ7xt2kmS8IvrGyanY5l0CCA2xF7bWYAnw=",
+        "lastModified": 1779009632,
+        "narHash": "sha256-hJIJbtm49FhgJ0l+oMsgSJX2I176mBta2auNJhv2tR4=",
         "ref": "refs/heads/main",
-        "rev": "f5273878cba5641817aad0f08ce0cfb04e3e00b9",
-        "revCount": 360,
+        "rev": "edea209b7a343417e7ecf7a68ce85ab68313763c",
+        "revCount": 364,
         "type": "git",
-        "url": "file:///mnt/data/fun/blackberry/fen"
+        "url": "file:///mnt/data/fun/bbdev/projects/fen"
       },
       "original": {
         "type": "git",
-        "url": "file:///mnt/data/fun/blackberry/fen"
+        "url": "file:///mnt/data/fun/bbdev/projects/fen"
       }
     },
     "flake-utils": {

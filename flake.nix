@@ -5,7 +5,7 @@
   # materialized dependency source is byte-identical to what fen's own Nix
   # build consumes. We never reimplement nixpkgs version pinning.
   inputs = {
-    fen.url = "git+file:///mnt/data/fun/blackberry/fen";
+    fen.url = "git+file:///mnt/data/fun/bbdev/projects/fen";
     nixpkgs.follows = "fen/nixpkgs";
     flake-utils.follows = "fen/flake-utils";
   };

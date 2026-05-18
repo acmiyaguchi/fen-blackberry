@@ -2,12 +2,12 @@
 
 # Parent flake providing the BBNDK FHS shell (`#shell` -> bb-shell-entry,
 # sources bbndk-env_10_3_1_995.sh then exec "$@").
-PARENT_FLAKE := /mnt/data/fun/blackberry
+PARENT_FLAKE := /mnt/data/fun/bbdev
 BB_SHELL     := nix run $(PARENT_FLAKE)\#shell --
 
 # The fen checkout (only used by gen-version-lua.sh for the version stamp;
 # the build itself consumes deps/fen-src materialized by `nix build .#deps`).
-FEN_CHECKOUT := /mnt/data/fun/blackberry/fen
+FEN_CHECKOUT := /mnt/data/fun/bbdev/projects/fen
 
 # QNX cross toolchain (resolved inside BB_SHELL; QNX_HOST/QNX_TARGET preset).
 CC     := qcc -Vgcc_ntoarmv7le

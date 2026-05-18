@@ -5,7 +5,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-FEN_CHECKOUT="${FEN_CHECKOUT:-/mnt/data/fun/blackberry/fen}"
+FEN_CHECKOUT="${FEN_CHECKOUT:-/mnt/data/fun/bbdev/projects/fen}"
 
 rev="unknown"; short="unknown"; dirty="false"; ver="unknown"; mod=""
 if git -C "$FEN_CHECKOUT" rev-parse --git-dir >/dev/null 2>&1; then
