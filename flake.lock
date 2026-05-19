@@ -6,11 +6,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1779009632,
-        "narHash": "sha256-hJIJbtm49FhgJ0l+oMsgSJX2I176mBta2auNJhv2tR4=",
+        "lastModified": 1779160910,
+        "narHash": "sha256-11Y6NX4iTkM+WN67j5uWpGItDE/kqpIXw8knP/opfgs=",
         "ref": "refs/heads/main",
-        "rev": "edea209b7a343417e7ecf7a68ce85ab68313763c",
-        "revCount": 364,
+        "rev": "56090829a9c22f77b56b35380e84aa1aace239db",
+        "revCount": 369,
         "type": "git",
         "url": "file:///mnt/data/fun/bbdev/projects/fen"
       },
