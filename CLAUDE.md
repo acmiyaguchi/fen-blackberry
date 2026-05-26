@@ -17,9 +17,15 @@ all 7 deps byte-identical to fen's own build.
   `BBNIX_SYSROOT` via `getEnv` and throws if unset.
 - Stage 3 (Lua payload + deterministic ZIP) is arch-independent and runs in the
   pure host devShell (`.#`), which carries `fennel`/`zip`.
-- Link is partial-static: `-Wl,-Bstatic -llua -Wl,-Bdynamic -lcurl -lm`. Our
-  code and Lua are baked in; BB10's platform libcurl/TLS stack and QNX libc are
-  dynamic (resolved from the baked sysroot's `armle-v7/usr/lib`).
+- Link is partial-static: `-Wl,-Bstatic -llua -lcurl -lssl -lcrypto -lz
+  -Wl,-Bdynamic -lsocket -lm`. Our code, Lua, AND the HTTPS/TLS stack are baked
+  in — bbnix's static `libcurl.a` over its from-source OpenSSL 3.x + zlib
+  (flake input `bbnix`, attrs `bb.curl`/`bb.openssl`/`bb.zlib`, store paths
+  exported into `.#cross` as `BBNIX_CURL`/`BBNIX_OPENSSL`/`BBNIX_ZLIB`). This
+  escapes the device's EOL `libcurl.so.2` / OpenSSL 1.0.x and its stale CA
+  store. Only QNX platform libs stay dynamic: `libsocket.so.3` (QNX sockets/
+  getaddrinfo, needed now that curl is static), `libm.so.2`, `libgcc_s.so.1`,
+  `libc.so.3` — resolved on-device.
 - **Device ops are NOT here.** This repo only produces `build/fen`; deploy,
   smoke, and the CA bundle are out of scope. Copy the binary to the device and
   launch it by absolute path (fen locates its appended Lua zip via `argv[0]`).

@@ -36,6 +36,20 @@ QNXCC="-include stddef.h"
 
 need_deps() { [ -d "$DEPS" ] || { echo "error: run 'make deps' first" >&2; exit 1; }; }
 
+# bbnix's from-source curl: static libcurl.a built over its own OpenSSL 3.x +
+# zlib (also static archives). The `.#cross` devShell exports these store
+# paths; stage2 reads the curl headers and stage4 links the static archives.
+# stage1/stage3 don't need curl, so this is per-stage, not a top-level require.
+CURL="${BBNIX_CURL:-}"
+OPENSSL="${BBNIX_OPENSSL:-}"
+ZLIB="${BBNIX_ZLIB:-}"
+need_curl() {
+  [ -n "$CURL" ] && [ -n "$OPENSSL" ] && [ -n "$ZLIB" ] || {
+    echo "error: BBNIX_CURL/BBNIX_OPENSSL/BBNIX_ZLIB unset; run via 'make stage2'/'make stage4' (the .#cross devShell)" >&2
+    exit 1
+  }
+}
+
 stage1() { # Lua 5.4 static (≙ fenBinaryLua). POSIX path — QNX is not Linux.
   need_deps
   rm -rf "$ROOT/build/lua-src"
@@ -55,6 +69,7 @@ stage1() { # Lua 5.4 static (≙ fenBinaryLua). POSIX path — QNX is not Linux.
 
 stage2() { # fen C objects (≙ fenBinaryObjects).
   need_deps
+  need_curl
   local F="$DEPS/fen-src"
   mkdir -p "$OBJ"
   # termbox2.h does `#define _XOPEN_SOURCE` (empty); QNX sys/platform.h only
@@ -62,8 +77,10 @@ stage2() { # fen C objects (≙ fenBinaryObjects).
   # _QNX_SOURCE = QNX's expose-all-APIs macro (strerror_r, cfmakeraw, etc.).
   $CC -O2 -Wall $QNXCC -D_XOPEN_SOURCE=600 -D_QNX_SOURCE -I"$LUA/include" \
     -c "$F/extensions/adapters/presenters/tui/vendor/lua_termbox2.c" -o "$OBJ/lua_termbox2.o"
-  # curl headers come from the baked sysroot (bbnix gcc --with-sysroot).
-  $CC -O2 -Wall $QNXCC -I"$LUA/include" \
+  # curl headers come from bbnix's curl 8.20.0 (ahead of the sysroot's older
+  # libcurl headers the cross gcc auto-searches), so the API matches the static
+  # libcurl.a we link in stage4.
+  $CC -O2 -Wall $QNXCC -I"$CURL/include" -I"$LUA/include" \
     -c "$F/packages/util/vendor/fen_http.c" -o "$OBJ/fen_http.o"
   $CC -O2 -Wall $QNXCC -I"$LUA/include" \
     -c "$F/packages/util/vendor/fen_process.c" -o "$OBJ/fen_process.o"
@@ -121,6 +138,7 @@ stage3() { # Lua payload + version.lua + deterministic ZIP (≙ luaTree+zip).
 
 stage4() { # compile fen.c + kubazip, partial-static link, append ZIP (≙ fenBinary).
   need_deps
+  need_curl
   [ -f "$ZIP" ] || { echo "error: run stage3 first ($ZIP missing)" >&2; exit 1; }
   # fen.c does #include <zip/zip.h>; the raw kubazip repo ships src/zip.h, so
   # build a tiny <zip/zip.h> include shim and compile src/zip.c directly.
@@ -142,12 +160,12 @@ stage4() { # compile fen.c + kubazip, partial-static link, append ZIP (≙ fenBi
     -I"$ROOT/build/kubazip-inc" -I"$(dirname "$KZC")" \
     -c "$KZC" -o "$OBJ/kubazip.o"
 
-  # libgcc_s.so.1 import stub. The device's prebuilt libcurl.so.2 / libm.so.2
-  # import 8 ARM-EABI runtime helpers (__aeabi_l2d, __aeabi_idiv, …) that GCC
-  # 9's static libgcc.a ALSO defines but marks HIDDEN — so ld refuses to bind a
-  # hidden local def to the DSO references ("hidden symbol … referenced by DSO"
-  # → link fails). Build a tiny link-time stub libgcc_s.so.1 exporting just
-  # those names (default visibility); the DSO refs then resolve DSO→DSO. The
+  # libgcc_s.so.1 import stub. The device's prebuilt libm.so.2 (still dynamic
+  # below) imports 8 ARM-EABI runtime helpers (__aeabi_l2d, __aeabi_idiv, …)
+  # that GCC 9's static libgcc.a ALSO defines but marks HIDDEN — so ld refuses
+  # to bind a hidden local def to the DSO references ("hidden symbol … referenced
+  # by DSO" → link fails). Build a tiny link-time stub libgcc_s.so.1 exporting
+  # just those names (default visibility); the DSO refs then resolve DSO→DSO. The
   # stub is NEVER deployed: at runtime the device's own GCC-4.8.3 libgcc_s.so.1
   # (NEEDED via its soname) supplies the real implementations. If a new "hidden
   # symbol referenced by DSO" appears, add the named symbol here.
@@ -159,17 +177,20 @@ stage4() { # compile fen.c + kubazip, partial-static link, append ZIP (≙ fenBi
   done > "$STUB/stub.c"
   $CC -shared -nostdlib -Wl,-soname,libgcc_s.so.1 "$STUB/stub.c" -o "$STUB/libgcc_s.so.1"
 
-  # Partial-static: OUR code (liblua.a + kubazip/cjson/lfs/fen objects) is
-  # baked in static; the platform network/TLS stack is dynamic. BB10's
-  # libcurl.a was built with krb5/gssapi/tftp and QNX sockets, whose deps
-  # (libgssapi/libkrb5) ship shared-only — so static curl is impossible.
-  # Dynamic -lcurl resolves against the device's own libcurl.so (in the baked
-  # sysroot, armle-v7/usr/lib). --allow-shlib-undefined defers libcurl.so's
-  # transitive deps to the runtime loader on-device.
+  # Partial-static: OUR code (liblua.a + kubazip/cjson/lfs/fen objects) AND the
+  # whole HTTPS/TLS stack are baked in static — bbnix's libcurl.a over its
+  # OpenSSL 3.x (libssl.a/libcrypto.a) + zlib (libz.a). This escapes the
+  # device's EOL libcurl.so.2 / OpenSSL 1.0.x and its 2012-vintage CA store
+  # (the whole point of bbnix curl). Static-archive order is dependency order:
+  # curl → ssl → crypto → z. QNX sockets/getaddrinfo live in libsocket.so.3
+  # (not libc), so curl's socket refs need a dynamic -lsocket. Only libm.so.2,
+  # libsocket.so.3, libgcc_s.so.1, and QNX libc remain dynamic (device libs).
+  # --allow-shlib-undefined defers those DSOs' transitive deps to the on-device
+  # loader.
   $CC -O2 -Wall "$OBJ"/*.o \
-    -L"$LUA/lib" -L"$STUB" \
-    -Wl,-Bstatic -llua -Wl,-Bdynamic \
-    -lcurl -lm -l:libgcc_s.so.1 \
+    -L"$LUA/lib" -L"$CURL/lib" -L"$OPENSSL/lib" -L"$ZLIB/lib" -L"$STUB" \
+    -Wl,-Bstatic -llua -lcurl -lssl -lcrypto -lz -Wl,-Bdynamic \
+    -lsocket -lm -l:libgcc_s.so.1 \
     -Wl,--allow-shlib-undefined \
     -o "$OUT"
   cat "$ZIP" >> "$OUT"

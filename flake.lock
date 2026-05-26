@@ -6,17 +6,17 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1779756635,
-        "narHash": "sha256-9mVrWNxC2iK95FFB1sOKxVIpoqaiViw5eGRBa8uNTcs=",
+        "lastModified": 1779774668,
+        "narHash": "sha256-X0epdAosTRuQGPteerS3m5e/trojqB1E2br88Wbyod4=",
         "owner": "acmiyaguchi",
         "repo": "bbnix",
-        "rev": "d85267b1d50958382a3f40a3c449ee3bf4c5b606",
+        "rev": "dc54f8631979688833fce53950aa83ddf7ce49d4",
         "type": "github"
       },
       "original": {
         "owner": "acmiyaguchi",
         "repo": "bbnix",
-        "rev": "d85267b1d50958382a3f40a3c449ee3bf4c5b606",
+        "rev": "dc54f8631979688833fce53950aa83ddf7ce49d4",
         "type": "github"
       }
     },

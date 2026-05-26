@@ -14,7 +14,7 @@
     fen.url = "github:acmiyaguchi/fen/b25368e02b5880737f888fee156e9599859b07fc";
     nixpkgs.follows = "fen/nixpkgs";
     flake-utils.follows = "fen/flake-utils";
-    bbnix.url = "github:acmiyaguchi/bbnix/d85267b1d50958382a3f40a3c449ee3bf4c5b606";
+    bbnix.url = "github:acmiyaguchi/bbnix/dc54f8631979688833fce53950aa83ddf7ce49d4";
   };
 
   outputs = { self, fen, nixpkgs, flake-utils, bbnix }:
@@ -48,6 +48,12 @@
         # GCC/binutils, so it requires `--impure` + BBNIX_SYSROOT (bbnix throws
         # otherwise). The compiler bakes --with-sysroot, so device headers/libs
         # resolve automatically; cross-build.sh just calls the prefixed tools.
+        #
+        # We also bring in bbnix's from-source curl (static libcurl.a over its
+        # OpenSSL 3.x + zlib) so stage4 links curl/TLS partial-static instead of
+        # against the device's EOL libcurl.so.2 / OpenSSL 1.0.x. cross-build.sh
+        # reads these store paths for the curl headers (stage2) and the static
+        # archives (stage4).
         devShells.cross = pkgs.mkShell {
           packages = [
             bb.gcc
@@ -60,6 +66,9 @@
             export CC="arm-unknown-nto-qnx8.0.0eabi-gcc"
             export AR="arm-unknown-nto-qnx8.0.0eabi-ar"
             export RANLIB="arm-unknown-nto-qnx8.0.0eabi-ranlib"
+            export BBNIX_CURL="${bb.curl}"
+            export BBNIX_OPENSSL="${bb.openssl}"
+            export BBNIX_ZLIB="${bb.zlib}"
           '';
         };
       });
