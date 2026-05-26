@@ -4,7 +4,7 @@
 # nix/artifacts.nix consumes — taken from the *followed* nixpkgs, so versions
 # match fen's flake.lock with zero hand-pinning:
 #
-#   lua/       <- lua5_4 source            (Stage 1: build liblua.a with qcc)
+#   lua/       <- lua5_4 source            (Stage 1: build liblua.a, bbnix gcc)
 #   cjson/     <- lua-cjson source         (Stage 2: lua_cjson/strbuf/fpconv.c)
 #   lfs/       <- luafilesystem source     (Stage 2: src/lfs.c)
 #   kubazip/   <- kubazip source           (Stage 4: src/zip.c, <zip/zip.h>)

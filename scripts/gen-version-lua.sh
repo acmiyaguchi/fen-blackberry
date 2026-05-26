@@ -5,10 +5,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-FEN_CHECKOUT="${FEN_CHECKOUT:-/mnt/data/fun/bbdev/projects/fen}"
+# Default: derive provenance from the materialized deps (no local checkout).
+# FEN_CHECKOUT may be set in the environment to stamp from a working tree
+# (richer `git describe`/dirty info); it is unset by default.
+FEN_CHECKOUT="${FEN_CHECKOUT:-}"
 
 rev="unknown"; short="unknown"; dirty="false"; ver="unknown"; mod=""
-if git -C "$FEN_CHECKOUT" rev-parse --git-dir >/dev/null 2>&1; then
+if [ -n "$FEN_CHECKOUT" ] && git -C "$FEN_CHECKOUT" rev-parse --git-dir >/dev/null 2>&1; then
   rev="$(git -C "$FEN_CHECKOUT" rev-parse HEAD)"
   short="$(git -C "$FEN_CHECKOUT" rev-parse --short HEAD)"
   ver="$(git -C "$FEN_CHECKOUT" describe --tags --always --dirty 2>/dev/null || echo "$short")"
@@ -28,6 +31,6 @@ return {
   source = "fen-blackberry",
   lastModified = "${mod}",
   buildSystem = "x86_64-linux",
-  targetSystem = "qnx-armle-v7",
+  targetSystem = "arm-unknown-nto-qnx8.0.0eabi",
 }
 EOF
