@@ -34,6 +34,10 @@ XRANLIB="${RANLIB:-arm-unknown-nto-qnx8.0.0eabi-ranlib}"
 # Force <stddef.h> first. (Mirrors bbnix/pkgs/qnx-common.nix stddefFlag.)
 QNXCC="-include stddef.h"
 
+# Every cross compile shares the same opt/warning/QNX-gap flags; only the
+# per-file -I/-D vary, so callers pass just those plus -c/-o.
+qcc() { $CC -O2 -Wall $QNXCC "$@"; }
+
 need_deps() { [ -d "$DEPS" ] || { echo "error: run 'make deps' first" >&2; exit 1; }; }
 
 # bbnix's from-source curl: static libcurl.a built over its own OpenSSL 3.x +
@@ -71,26 +75,26 @@ stage2() { # fen C objects (≙ fenBinaryObjects).
   need_deps
   need_curl
   local F="$DEPS/fen-src"
-  mkdir -p "$OBJ"
+  # Start clean: stage4 links "$OBJ"/*.o by glob, so a stale object left from a
+  # prior build/branch would silently get baked into fen otherwise.
+  rm -rf "$OBJ"; mkdir -p "$OBJ"
   # termbox2.h does `#define _XOPEN_SOURCE` (empty); QNX sys/platform.h only
   # accepts 500/600/700. Its #ifndef guard lets us win from the command line.
   # _QNX_SOURCE = QNX's expose-all-APIs macro (strerror_r, cfmakeraw, etc.).
-  $CC -O2 -Wall $QNXCC -D_XOPEN_SOURCE=600 -D_QNX_SOURCE -I"$LUA/include" \
+  qcc -D_XOPEN_SOURCE=600 -D_QNX_SOURCE -I"$LUA/include" \
     -c "$F/extensions/adapters/presenters/tui/vendor/lua_termbox2.c" -o "$OBJ/lua_termbox2.o"
   # curl headers come from bbnix's curl 8.20.0 (ahead of the sysroot's older
   # libcurl headers the cross gcc auto-searches), so the API matches the static
   # libcurl.a we link in stage4.
-  $CC -O2 -Wall $QNXCC -I"$CURL/include" -I"$LUA/include" \
+  qcc -I"$CURL/include" -I"$LUA/include" \
     -c "$F/packages/util/vendor/fen_http.c" -o "$OBJ/fen_http.o"
-  $CC -O2 -Wall $QNXCC -I"$LUA/include" \
-    -c "$F/packages/util/vendor/fen_process.c" -o "$OBJ/fen_process.o"
-  $CC -O2 -Wall $QNXCC -I"$LUA/include" \
-    -c "$F/packages/util/vendor/fen_random.c" -o "$OBJ/fen_random.o"
-  $CC -O2 -Wall $QNXCC -I"$LUA/include" \
-    -c "$DEPS/lfs/src/lfs.c" -o "$OBJ/lfs.o"
-  $CC -O2 -Wall $QNXCC -DNDEBUG -fPIC -I"$LUA/include" -c "$DEPS/cjson/lua_cjson.c" -o "$OBJ/lua_cjson.o"
-  $CC -O2 -Wall $QNXCC -DNDEBUG -fPIC -I"$LUA/include" -c "$DEPS/cjson/strbuf.c"    -o "$OBJ/strbuf.o"
-  $CC -O2 -Wall $QNXCC -DNDEBUG -fPIC -I"$LUA/include" -c "$DEPS/cjson/fpconv.c"    -o "$OBJ/fpconv.o"
+  qcc -I"$LUA/include" -c "$F/packages/util/vendor/fen_process.c" -o "$OBJ/fen_process.o"
+  qcc -I"$LUA/include" -c "$F/packages/util/vendor/fen_random.c"  -o "$OBJ/fen_random.o"
+  qcc -I"$LUA/include" -c "$DEPS/lfs/src/lfs.c" -o "$OBJ/lfs.o"
+  # cjson ships three TUs, all wanting -DNDEBUG -fPIC (mirrors fenBinaryObjects).
+  for c in lua_cjson strbuf fpconv; do
+    qcc -DNDEBUG -fPIC -I"$LUA/include" -c "$DEPS/cjson/$c.c" -o "$OBJ/$c.o"
+  done
   echo "stage2 ok -> $(ls "$OBJ" | tr '\n' ' ')"
 }
 
@@ -153,11 +157,9 @@ stage4() { # compile fen.c + kubazip, partial-static link, append ZIP (≙ fenBi
   # /nix/store path, so we can't write .o next to it). _QNX_SOURCE exposes
   # ftruncate/symlink prototypes used by kubazip.
   [ -f "$WORK/packages/fen/fen.c" ] || { echo "error: run stage3 first (patched fen.c missing)" >&2; exit 1; }
-  $CC -O2 -Wall $QNXCC \
-    -I"$LUA/include" -I"$ROOT/build/kubazip-inc" -I"$(dirname "$KZC")" \
+  qcc -I"$LUA/include" -I"$ROOT/build/kubazip-inc" -I"$(dirname "$KZC")" \
     -c "$WORK/packages/fen/fen.c" -o "$OBJ/fen_main.o"
-  $CC -O2 -Wall $QNXCC -D_QNX_SOURCE \
-    -I"$ROOT/build/kubazip-inc" -I"$(dirname "$KZC")" \
+  qcc -D_QNX_SOURCE -I"$ROOT/build/kubazip-inc" -I"$(dirname "$KZC")" \
     -c "$KZC" -o "$OBJ/kubazip.o"
 
   # libgcc_s.so.1 import stub. The device's prebuilt libm.so.2 (still dynamic

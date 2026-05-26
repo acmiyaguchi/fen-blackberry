@@ -7,8 +7,9 @@
 # Stage 3 (Lua payload) is arch-independent and runs in the pure host devShell.
 # Deploying to a device is out of scope — this only produces build/fen; copy it
 # to the device and launch it by absolute path.
-
-include config.mk
+#
+# The version stamp (gen-version-lua.sh) reads fen's revision from the
+# materialized deps (build/deps/VERSIONS); no local fen checkout is required.
 
 .PHONY: help deps stage1 stage2 stage3 stage4 fen clean
 
