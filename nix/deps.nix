@@ -7,6 +7,7 @@
 #   lua/       <- lua5_4 source            (Stage 1: build liblua.a, bbnix gcc)
 #   cjson/     <- lua-cjson source         (Stage 2: lua_cjson/strbuf/fpconv.c)
 #   lfs/       <- luafilesystem source     (Stage 2: src/lfs.c)
+#   luasocket/ <- luasocket source         (Stage 2: src/*.c, baked socket/mime C modules)
 #   kubazip/   <- kubazip source           (Stage 4: src/zip.c, <zip/zip.h>)
 #   fennel.lua <- lua54Packages.fennel     (Stage 3: embedded fennel compiler)
 #   dkjson/    <- dkjson share/lua/5.4/.   (Stage 3: required Lua payload)
@@ -28,6 +29,7 @@ pkgs.runCommand "fen-bb-deps"
     lua5_4 = v pkgs.lua5_4;
     lua-cjson = v lp.lua-cjson;
     luafilesystem = v lp.luafilesystem;
+    luasocket = v lp.luasocket;
     kubazip = v pkgs.kubazip;
     fennel = v lp.fennel;
     dkjson = v lp.dkjson;
@@ -40,6 +42,7 @@ pkgs.runCommand "fen-bb-deps"
   cp -R --no-preserve=mode,ownership ${src pkgs.lua5_4}/        "$out/lua"
   cp -R --no-preserve=mode,ownership ${src lp.lua-cjson}/       "$out/cjson"
   cp -R --no-preserve=mode,ownership ${src lp.luafilesystem}/   "$out/lfs"
+  cp -R --no-preserve=mode,ownership ${src lp.luasocket}/       "$out/luasocket"
   cp -R --no-preserve=mode,ownership ${src pkgs.kubazip}/       "$out/kubazip"
 
   # Arch-independent Lua payload pieces (already-built, copied verbatim the
@@ -56,6 +59,7 @@ pkgs.runCommand "fen-bb-deps"
 lua5_4=${v pkgs.lua5_4}
 lua-cjson=${v lp.lua-cjson}
 luafilesystem=${v lp.luafilesystem}
+luasocket=${v lp.luasocket}
 kubazip=${v pkgs.kubazip}
 fennel=${v lp.fennel}
 dkjson=${v lp.dkjson}

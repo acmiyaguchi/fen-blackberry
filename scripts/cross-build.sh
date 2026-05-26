@@ -91,6 +91,15 @@ stage2() { # fen C objects (≙ fenBinaryObjects).
   qcc -I"$LUA/include" -c "$F/packages/util/vendor/fen_process.c" -o "$OBJ/fen_process.o"
   qcc -I"$LUA/include" -c "$F/packages/util/vendor/fen_random.c"  -o "$OBJ/fen_random.o"
   qcc -I"$LUA/include" -c "$DEPS/lfs/src/lfs.c" -o "$OBJ/lfs.o"
+  # luasocket: fen.c preloads socket.core/mime.core/socket.serial/socket.unix
+  # as baked-in C modules, so the POSIX source set must be linked in. Mirrors
+  # fen/nix/artifacts.nix (usocket.c = POSIX backend; serial/unix* are POSIX).
+  for src in luasocket timeout buffer io auxiliar compat options \
+             inet usocket except select tcp udp mime \
+             unixstream unixdgram unix serial; do
+    qcc -DLUASOCKET_NODEBUG -I"$LUA/include" -I"$DEPS/luasocket/src" \
+      -c "$DEPS/luasocket/src/$src.c" -o "$OBJ/luasocket-$src.o"
+  done
   # cjson ships three TUs, all wanting -DNDEBUG -fPIC (mirrors fenBinaryObjects).
   for c in lua_cjson strbuf fpconv; do
     qcc -DNDEBUG -fPIC -I"$LUA/include" -c "$DEPS/cjson/$c.c" -o "$OBJ/$c.o"
@@ -109,7 +118,7 @@ stage3() { # Lua payload + version.lua + deterministic ZIP (≙ luaTree+zip).
     echo ">> applying $(basename "$p")"
     patch -p1 -d "$WORK" --fuzz=3 < "$p"
   done
-  ( cd "$WORK" && fennel scripts/fennel-build.fnl )
+  ( cd "$WORK" && fennel scripts/build/fennel-build.fnl )
   mkdir -p "$WORK/packages/fen/dist/fen"
   bash "$ROOT/scripts/gen-version-lua.sh" > "$WORK/packages/fen/dist/fen/version.lua"
 
@@ -187,7 +196,7 @@ stage4() { # compile fen.c + kubazip, partial-static link, append ZIP (≙ fenBi
   # curl → ssl → crypto → z; libssl/libcrypto are wrapped in --start-group so a
   # future OpenSSL bump's provider/self-test back-edges can't break the
   # single-pass link. QNX sockets/getaddrinfo live in libsocket.so.3 (not libc),
-  # so curl's socket refs need a dynamic -lsocket. Only libm.so.2,
+  # so curl and luasocket's socket refs need a dynamic -lsocket. Only libm.so.2,
   # libsocket.so.3, libgcc_s.so.1, and QNX libc remain dynamic (device libs).
   # --allow-shlib-undefined defers those DSOs' transitive deps to the on-device
   # loader.

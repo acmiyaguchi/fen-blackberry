@@ -11,7 +11,7 @@
   # BBNIX_SYSROOT pointed at a bbndk-linux tree. bbnix keeps its OWN nixpkgs
   # pin (its GCC build is tuned to it) — we do not make it follow ours.
   inputs = {
-    fen.url = "github:acmiyaguchi/fen/b25368e02b5880737f888fee156e9599859b07fc";
+    fen.url = "github:acmiyaguchi/fen/98c3bfcfc6b7239aa43dac808c16159da0b5c02c";
     nixpkgs.follows = "fen/nixpkgs";
     flake-utils.follows = "fen/flake-utils";
     bbnix.url = "github:acmiyaguchi/bbnix/dc54f8631979688833fce53950aa83ddf7ce49d4";
