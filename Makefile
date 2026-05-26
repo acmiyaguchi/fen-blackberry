@@ -5,7 +5,8 @@
 # Stages 1/2/4 need BBNIX_SYSROOT set (they build `--impure`); set it to your
 # bbndk-linux tree, e.g.  BBNIX_SYSROOT=/path/to/bbndk-linux make fen
 # Stage 3 (Lua payload) is arch-independent and runs in the pure host devShell.
-# Deploying to a device is NOT this repo's job — use the meta repo's bb-* tools.
+# Deploying to a device is out of scope — this only produces build/fen; copy it
+# to the device and launch it by absolute path.
 
 include config.mk
 

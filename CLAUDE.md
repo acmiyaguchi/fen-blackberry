@@ -20,8 +20,9 @@ all 7 deps byte-identical to fen's own build.
 - Link is partial-static: `-Wl,-Bstatic -llua -Wl,-Bdynamic -lcurl -lm`. Our
   code and Lua are baked in; BB10's platform libcurl/TLS stack and QNX libc are
   dynamic (resolved from the baked sysroot's `armle-v7/usr/lib`).
-- **Device ops are NOT here.** Deploy/smoke/CA live in the bbdev meta repo
-  (`bb-scp` / `bb-ssh` / `bb-deploy`). This repo only produces `build/fen`.
+- **Device ops are NOT here.** This repo only produces `build/fen`; deploy,
+  smoke, and the CA bundle are out of scope. Copy the binary to the device and
+  launch it by absolute path (fen locates its appended Lua zip via `argv[0]`).
 
 ## The 4 stages mirror fen/nix/artifacts.nix 1:1
 

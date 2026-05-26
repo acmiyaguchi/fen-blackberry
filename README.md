@@ -30,10 +30,8 @@ host devShell and needs no sysroot.
 
 ## Deploying to a device
 
-Not this repo's job — it only produces `build/fen`. Use the **bbdev meta repo**
-device helpers (`bb-scp` / `bb-ssh` / `bb-deploy`) to push and smoke-test the
-binary. fen finds its appended Lua zip via `argv[0]`, so launch it by absolute
-path on-device. Note BB10's stock CA store is 2012-vintage; modern TLS
-endpoints need a current CA bundle exported via `CURL_CA_BUNDLE` /
-`SSL_CERT_FILE` (fen ≥ v0.6.2 honors these via `CURLOPT_CAINFO`) — handle that
-in the meta repo's deploy wrapper.
+Out of scope — this repo only produces `build/fen`. Copy it to the device with
+whatever transport you use and launch it by **absolute path** (fen locates its
+appended Lua zip via `argv[0]`). Note BB10's stock CA store is 2012-vintage;
+modern TLS endpoints need a current CA bundle exported via `CURL_CA_BUNDLE` /
+`SSL_CERT_FILE` (fen ≥ v0.6.2 honors these via `CURLOPT_CAINFO`).
