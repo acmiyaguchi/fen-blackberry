@@ -182,14 +182,17 @@ stage4() { # compile fen.c + kubazip, partial-static link, append ZIP (≙ fenBi
   # OpenSSL 3.x (libssl.a/libcrypto.a) + zlib (libz.a). This escapes the
   # device's EOL libcurl.so.2 / OpenSSL 1.0.x and its 2012-vintage CA store
   # (the whole point of bbnix curl). Static-archive order is dependency order:
-  # curl → ssl → crypto → z. QNX sockets/getaddrinfo live in libsocket.so.3
-  # (not libc), so curl's socket refs need a dynamic -lsocket. Only libm.so.2,
+  # curl → ssl → crypto → z; libssl/libcrypto are wrapped in --start-group so a
+  # future OpenSSL bump's provider/self-test back-edges can't break the
+  # single-pass link. QNX sockets/getaddrinfo live in libsocket.so.3 (not libc),
+  # so curl's socket refs need a dynamic -lsocket. Only libm.so.2,
   # libsocket.so.3, libgcc_s.so.1, and QNX libc remain dynamic (device libs).
   # --allow-shlib-undefined defers those DSOs' transitive deps to the on-device
   # loader.
   $CC -O2 -Wall "$OBJ"/*.o \
     -L"$LUA/lib" -L"$CURL/lib" -L"$OPENSSL/lib" -L"$ZLIB/lib" -L"$STUB" \
-    -Wl,-Bstatic -llua -lcurl -lssl -lcrypto -lz -Wl,-Bdynamic \
+    -Wl,-Bstatic -llua -lcurl \
+    -Wl,--start-group -lssl -lcrypto -Wl,--end-group -lz -Wl,-Bdynamic \
     -lsocket -lm -l:libgcc_s.so.1 \
     -Wl,--allow-shlib-undefined \
     -o "$OUT"
