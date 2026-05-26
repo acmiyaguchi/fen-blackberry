@@ -1,21 +1,27 @@
 # CLAUDE.md — fen-blackberry
 
-Cross-builds upstream `fen` for BB10/QNX 6.6 armle-v7. **fen is never
-modified** — it is `inputs.fen` (flake input pin); `nixpkgs.follows =
-"fen/nixpkgs"` keeps all 7 deps byte-identical to fen's own build.
+Cross-builds upstream `fen` for BB10/QNX armle-v7. **fen is never modified** —
+it is `inputs.fen` (flake input pin); `nixpkgs.follows = "fen/nixpkgs"` keeps
+all 7 deps byte-identical to fen's own build.
 
 ## Architecture (do not relitigate)
 
+- Standalone: clone anywhere. The only external requirement is `BBNIX_SYSROOT`
+  (a `bbndk-linux` tree) for the compile stages — the bbnix contract.
 - Nix = pure source materialization only (`nix/deps.nix` → `make deps` →
   `build/deps`). It does NOT compile.
-- The qcc cross-compile runs OUTSIDE Nix in the parent BBNDK FHS:
-  `nix run /mnt/data/fun/blackberry#shell -- bash scripts/cross-build.sh stageN`.
-  A Nix sandbox cannot reach the parent FHS (no `/mnt`, no nested user-ns).
-- Stage 3 (Lua payload + deterministic ZIP) is arch-independent and runs in
-  this repo's devShell — the BBNDK FHS lacks `zip`.
-- Link is partial-static: `-Wl,-Bstatic -llua -Wl,-Bdynamic -lcurl -lm`.
-  Our code and Lua are baked in; BB10's platform libcurl/TLS stack and QNX
-  libc are dynamic.
+- The cross-compile uses the **bbnix** GCC 9 toolchain (input `bbnix`, prefix
+  `arm-unknown-nto-qnx8.0.0eabi-*`) via the `.#cross` devShell. bbnix's gcc
+  bakes `--with-sysroot`, so device headers/libs resolve automatically — no
+  BBNDK FHS shell, no `qcc`. Stages 1/2/4 build `--impure` because bbnix reads
+  `BBNIX_SYSROOT` via `getEnv` and throws if unset.
+- Stage 3 (Lua payload + deterministic ZIP) is arch-independent and runs in the
+  pure host devShell (`.#`), which carries `fennel`/`zip`.
+- Link is partial-static: `-Wl,-Bstatic -llua -Wl,-Bdynamic -lcurl -lm`. Our
+  code and Lua are baked in; BB10's platform libcurl/TLS stack and QNX libc are
+  dynamic (resolved from the baked sysroot's `armle-v7/usr/lib`).
+- **Device ops are NOT here.** Deploy/smoke/CA live in the bbdev meta repo
+  (`bb-scp` / `bb-ssh` / `bb-deploy`). This repo only produces `build/fen`.
 
 ## The 4 stages mirror fen/nix/artifacts.nix 1:1
 
@@ -38,8 +44,9 @@ scrub, `patchelf`, `remove-references-to`.
   stage3 hard-asserts this.
 - kubazip raw repo ships `src/zip.h`; fen.c wants `<zip/zip.h>` — stage4
   builds a one-file include shim.
-- gcc is 4.8.3; add `-std=gnu99` per-file only if a C11 error appears.
-- Iterate by running stages and fixing real errors; don't pre-guess tool
-  names — `cross-build.sh` probes `ntoarm-ar`/`ranlib` etc.
-
-Full plan: `/home/anthony/.claude/plans/yeah-lets-do-that-calm-trinket.md`.
+- GCC 9 over QNX's Dinkumware sysroot: `-include stddef.h` is applied to every
+  compile (`$QNXCC`) for the `_GCC_SIZE_T`/`<unistd.h>` `size_t` gap. If more
+  QNX-cross errors appear, the playbook is `bbnix/pkgs/qnx-common.nix`
+  (`-DSA_RESTART=0`, feature macros). fen is pure C, so the C++ ABI flags and
+  the GCC9-vs-4.8.3 exception/RTTI hazard do not apply.
+- Iterate by running stages and fixing real errors.

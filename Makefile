@@ -1,33 +1,31 @@
-# fen-blackberry — cross-compile fen for BlackBerry 10 / QNX 6.6 (armle-v7).
+# fen-blackberry — cross-compile fen for BlackBerry 10 / QNX (armle-v7).
 #
 # Nix materializes version-matched dependency *sources* (`make deps`); the
-# qcc compile/link runs OUTSIDE Nix inside the parent flake's BBNDK FHS shell.
-# Stage 3 (Lua payload) is arch-independent and runs in this repo's devShell.
+# cross compile/link uses the bbnix GCC toolchain in the `.#cross` devShell.
+# Stages 1/2/4 need BBNIX_SYSROOT set (they build `--impure`); set it to your
+# bbndk-linux tree, e.g.  BBNIX_SYSROOT=/path/to/bbndk-linux make fen
+# Stage 3 (Lua payload) is arch-independent and runs in the pure host devShell.
+# Deploying to a device is NOT this repo's job — use the meta repo's bb-* tools.
 
 include config.mk
 
-.PHONY: help deps stage1 stage2 stage3 stage4 fen scp ca install-wrapper smoke smoke-mock clean
+.PHONY: help deps stage1 stage2 stage3 stage4 fen clean
 
 help:
-	@echo 'fen-blackberry targets:'
+	@echo 'fen-blackberry targets (set BBNIX_SYSROOT for stages 1/2/4):'
 	@echo '  deps    — nix build .#deps -> build/deps (version-matched sources)'
-	@echo '  stage1  — qcc: Lua 5.4 static (liblua.a) [BBNDK FHS]'
-	@echo '  stage2  — qcc: fen C objects             [BBNDK FHS]'
+	@echo '  stage1  — bbnix gcc: Lua 5.4 static (liblua.a)   [.#cross --impure]'
+	@echo '  stage2  — bbnix gcc: fen C objects               [.#cross --impure]'
 	@echo '  stage3  — host fennel: Lua payload + archive-root [devShell]'
-	@echo '  stage4  — qcc: zip + partial-static link + append [BBNDK FHS]'
+	@echo '  stage4  — bbnix gcc: zip + partial-static link + append [.#cross --impure]'
 	@echo '  fen     — deps stage1 stage2 stage3 stage4 (full build)'
-	@echo '  scp     — deploy build/fen to the device (scripts/deploy.sh)'
-	@echo '  ca      — build + deploy modern CA bundle (fixes TLS verify)'
-	@echo '  install-wrapper — `fen` wrapper into BerryCore bin (Term49 PATH)'
-	@echo '  smoke   — on-device --version/--help (no network)'
-	@echo '  smoke-mock — on-device --print via host OpenAI mock (no API spend)'
 	@echo '  clean   — rm -rf build/'
 
 deps:
 	nix build .#deps --out-link build/deps
 
 stage1 stage2 stage4:
-	$(BB_SHELL) bash scripts/cross-build.sh $@
+	nix develop .#cross --impure --command bash scripts/cross-build.sh $@
 
 stage3:
 	nix develop --command bash scripts/cross-build.sh stage3
@@ -35,21 +33,6 @@ stage3:
 fen: deps stage1 stage2 stage3 stage4
 	@echo "built: build/fen"
 	@file build/fen
-
-scp:
-	bash scripts/deploy.sh
-
-ca:
-	bash scripts/deploy-cacert.sh
-
-install-wrapper:
-	bash scripts/install-wrapper.sh
-
-smoke:
-	bash scripts/smoke-device.sh
-
-smoke-mock:
-	bash scripts/smoke-device.sh mock
 
 clean:
 	rm -rf build

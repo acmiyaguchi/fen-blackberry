@@ -1,27 +1,36 @@
 {
-  description = "Cross-compile the fen coding-agent CLI for BlackBerry 10 / QNX 6.6 (armle-v7)";
+  description = "Cross-compile the fen coding-agent CLI for BlackBerry 10 / QNX (armle-v7) with the bbnix GCC toolchain";
 
   # fen is pinned as a flake input; nixpkgs *follows* fen's own pin so every
   # materialized dependency source is byte-identical to what fen's own Nix
   # build consumes. We never reimplement nixpkgs version pinning.
+  #
+  # bbnix supplies the cross toolchain (modern GCC 9 + binutils, prefix
+  # arm-unknown-nto-qnx8.0.0eabi-*). Its GCC reads BBNIX_SYSROOT at eval time
+  # and throws if unset, so anything touching `.#cross` needs `--impure` with
+  # BBNIX_SYSROOT pointed at a bbndk-linux tree. bbnix keeps its OWN nixpkgs
+  # pin (its GCC build is tuned to it) — we do not make it follow ours.
   inputs = {
-    fen.url = "git+file:///mnt/data/fun/bbdev/projects/fen";
+    fen.url = "github:acmiyaguchi/fen/b25368e02b5880737f888fee156e9599859b07fc";
     nixpkgs.follows = "fen/nixpkgs";
     flake-utils.follows = "fen/flake-utils";
+    bbnix.url = "github:acmiyaguchi/bbnix/d85267b1d50958382a3f40a3c449ee3bf4c5b606";
   };
 
-  outputs = { self, fen, nixpkgs, flake-utils }:
+  outputs = { self, fen, nixpkgs, flake-utils, bbnix }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
+        bb = bbnix.packages.${system};
       in {
         # Pure, reproducible: collect the exact dependency source/dist trees.
-        # The qcc cross-compile itself runs OUTSIDE Nix (see Makefile) because
-        # the BBNDK toolchain lives in the parent flake's FHS env.
+        # The cross-compile itself runs OUTSIDE Nix (see Makefile), driven by
+        # the bbnix toolchain in the `.#cross` devShell.
         packages.deps = import ./nix/deps.nix { inherit pkgs; fenSrc = fen; };
         packages.default = self.packages.${system}.deps;
 
         # Host tools for the arch-independent Lua payload stage (Stage 3).
+        # Pure — never references bbnix, so `nix develop` works without a sysroot.
         devShells.default = pkgs.mkShell {
           packages = [
             pkgs.lua54Packages.fennel
@@ -33,6 +42,25 @@
             pkgs.gnumake
             pkgs.coreutils
           ];
+        };
+
+        # Cross toolchain for the qcc-replacement stages (1/2/4). Pulls bbnix's
+        # GCC/binutils, so it requires `--impure` + BBNIX_SYSROOT (bbnix throws
+        # otherwise). The compiler bakes --with-sysroot, so device headers/libs
+        # resolve automatically; cross-build.sh just calls the prefixed tools.
+        devShells.cross = pkgs.mkShell {
+          packages = [
+            bb.gcc
+            bb.binutils
+            pkgs.gnumake
+            pkgs.coreutils
+            pkgs.file
+          ];
+          shellHook = ''
+            export CC="arm-unknown-nto-qnx8.0.0eabi-gcc"
+            export AR="arm-unknown-nto-qnx8.0.0eabi-ar"
+            export RANLIB="arm-unknown-nto-qnx8.0.0eabi-ranlib"
+          '';
         };
       });
 }

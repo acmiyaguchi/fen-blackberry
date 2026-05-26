@@ -1,26 +1,10 @@
-# Tunables for the fen-blackberry cross build. One place for paths/flags.
-
-# Parent flake providing the BBNDK FHS shell (`#shell` -> bb-shell-entry,
-# sources bbndk-env_10_3_1_995.sh then exec "$@").
-PARENT_FLAKE := /mnt/data/fun/bbdev
-BB_SHELL     := nix run $(PARENT_FLAKE)\#shell --
-
-# The fen checkout (only used by gen-version-lua.sh for the version stamp;
-# the build itself consumes deps/fen-src materialized by `nix build .#deps`).
-FEN_CHECKOUT := /mnt/data/fun/bbdev/projects/fen
-
-# QNX cross toolchain (resolved inside BB_SHELL; QNX_HOST/QNX_TARGET preset).
-CC     := qcc -Vgcc_ntoarmv7le
-AR     := ntoarmv7-ar
-RANLIB := ntoarmv7-gcc-ranlib
-
-# Device deploy (overridable via env / .env). USB-net dev-mode defaults.
-BB_DEVICE   ?= 169.254.0.1
-DEPLOY_DIR  ?= /accounts/1000/shared/documents
-# BerryCore's bin is first on PATH in every Term49 shell (env.sh). The
-# `fen` wrapper goes here so it's a first-class on-PATH command.
-BERRYCORE_BIN ?= /accounts/1000/shared/misc/berrycore/bin
-# BB10's stock CA bundle is 2012-vintage; modern TLS endpoints fail cert
-# verification. Ship a current Mozilla bundle and point OpenSSL/libcurl at it.
-CACERT_URL    ?= https://curl.se/ca/cacert.pem
-CACERT_DEVICE ?= /accounts/1000/shared/documents/cacert.pem
+# Tunables for the fen-blackberry cross build.
+#
+# The toolchain comes from bbnix (modern GCC 9, prefix
+# arm-unknown-nto-qnx8.0.0eabi-*), supplied by the `.#cross` devShell which
+# exports CC/AR/RANLIB. bbnix's GCC bakes --with-sysroot, so device
+# headers/libs resolve automatically — set BBNIX_SYSROOT to your bbndk-linux
+# tree before running stages 1/2/4 (they build `--impure`).
+#
+# The version stamp (gen-version-lua.sh) reads fen's revision from the
+# materialized deps (build/deps/VERSIONS); no local fen checkout is required.

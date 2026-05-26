@@ -1,56 +1,39 @@
 # fen-blackberry
 
 Cross-compiles the [fen](https://github.com/acmiyaguchi/fen) coding-agent CLI
-for **BlackBerry 10 / QNX 6.6 (armle-v7)** — the rooted Q10 in the parent
-BBNDK tree. Upstream fen is consumed **unmodified** as a flake input.
+for **BlackBerry 10 / QNX (armle-v7)** — the rooted Q10. Upstream fen is
+consumed **unmodified** as a flake input. Standalone: clone it anywhere; the
+only external requirement is a `bbndk-linux` tree pointed at by `BBNIX_SYSROOT`.
 
 ## How it works
 
 Nix's only job is pure, reproducible materialization of the exact dependency
-*sources* fen's own build uses (`nixpkgs.follows = "fen/nixpkgs"`). The qcc
-cross-compile runs **outside Nix**, inside the parent flake's BBNDK FHS shell
-(`nix run /mnt/data/fun/blackberry#shell -- …`). Link model: **partial-static**
-— our code and `liblua.a` are baked in; BB10's platform `libcurl`/TLS stack
-and QNX libc are dynamic.
+*sources* fen's own build uses (`nixpkgs.follows = "fen/nixpkgs"`). The
+cross-compile uses the [bbnix](https://github.com/acmiyaguchi/bbnix) GCC 9
+toolchain (flake input `bbnix`, prefix `arm-unknown-nto-qnx8.0.0eabi-*`) in the
+`.#cross` devShell — no BBNDK FHS shell, no `qcc`. bbnix's GCC bakes
+`--with-sysroot`, so device headers/libs resolve automatically. Link model:
+**partial-static** — our code and `liblua.a` are baked in; BB10's platform
+`libcurl`/TLS stack and QNX libc are dynamic.
+
+Stages 1/2/4 build `--impure` because bbnix reads `BBNIX_SYSROOT` and throws if
+it is unset:
 
 ```sh
-make fen             # deps -> stage1(Lua) -> stage2(C) -> stage3(payload) -> stage4(link)
-make scp             # deploy build/fen to /accounts/1000/shared/documents/
-make install-wrapper # `fen` wrapper into BerryCore bin -> on PATH in Term49
-make smoke           # on-device fen --version/--help (no network)
-make smoke-mock      # on-device --print via host OpenAI mock (no API spend)
+export BBNIX_SYSROOT=/path/to/bbndk-linux
+make fen     # deps -> stage1(Lua) -> stage2(C) -> stage3(payload) -> stage4(link)
+make help    # lists every target
 ```
 
-`make install-wrapper` drops a 2-line wrapper at
-`/accounts/1000/shared/misc/berrycore/bin/fen` that execs the real binary by
-absolute path (required: fen finds its appended Lua zip via `argv[0]`).
-BerryCore's `env.sh` puts that dir first on PATH, so in any Term49 shell you
-just type `fen`. Re-run after a BerryCore re-extract (it wipes added bins).
+Stage 3 (the arch-independent Lua payload + deterministic ZIP) runs in the pure
+host devShell and needs no sysroot.
 
-`make help` lists every target. Stages 1/2/4 run in the BBNDK FHS; stage 3
-(arch-independent Lua payload + ZIP) runs in this repo's `nix develop` shell.
+## Deploying to a device
 
-## Modern-TLS / CA fix (resolved)
-
-BB10's stock CA store is 2012-vintage, so the device's libcurl/OpenSSL
-failed cert verification on current endpoints (Codex OAuth token exchange,
-`api.openai.com`) with *"Peer certificate cannot be authenticated"*.
-
-Fixed by shipping a current CA bundle, adding live OpenAI-host intermediates
-for old-OpenSSL path building, and running fen through the BerryCore wrapper
-that exports the bundle path:
-
-```sh
-make ca               # build + deploy build/cacert.pem -> device
-make install-wrapper  # wrapper exports SSL_CERT_FILE/CURL_CA_BUNDLE
-```
-
-Run fen via the BerryCore `fen` wrapper (not the raw binary) so the CA env is
-set. Since upstream `fen` v0.6.2, the native HTTP backend explicitly honors
-`CURL_CA_BUNDLE` / `SSL_CERT_FILE` via `CURLOPT_CAINFO`. Verified with
-`fen eval`: HTTPS to `example.com`, `api.openai.com`, and
-`auth.openai.com/oauth/token` reaches HTTP status responses (TLS+cert OK),
-not transport cert errors — so `fen --login openai-codex` can complete.
-
-See `/home/anthony/.claude/plans/yeah-lets-do-that-calm-trinket.md` for the
-full plan and `../docs/device-ssh-transfer.md` for the deploy recipe.
+Not this repo's job — it only produces `build/fen`. Use the **bbdev meta repo**
+device helpers (`bb-scp` / `bb-ssh` / `bb-deploy`) to push and smoke-test the
+binary. fen finds its appended Lua zip via `argv[0]`, so launch it by absolute
+path on-device. Note BB10's stock CA store is 2012-vintage; modern TLS
+endpoints need a current CA bundle exported via `CURL_CA_BUNDLE` /
+`SSL_CERT_FILE` (fen ≥ v0.6.2 honors these via `CURLOPT_CAINFO`) — handle that
+in the meta repo's deploy wrapper.
