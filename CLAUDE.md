@@ -34,8 +34,8 @@ all 7 deps byte-identical to fen's own build.
 
 | stage | ≙ artifacts.nix | notes |
 |---|---|---|
-| 1 | fenBinaryLua  | `make posix` (NOT linux), `-DLUA_USE_POSIX`, `MYLIBS=-lm` |
-| 2 | fenBinaryObjects | 5 fen .c + lfs.c + cjson trio (`-DNDEBUG -fPIC`) |
+| 1 | fenBinaryLua  | `make … liblua.a` (archive target only — skips nixpkgs' `liblua.so` SONAME rule that breaks outside its build env), `MYCFLAGS=-DLUA_USE_POSIX`, `MYLIBS=-lm`. (Upstream uses `make linux` + the same POSIX flag.) |
+| 2 | fenBinaryObjects | 4 fen vendor .c + lfs.c + luasocket (18 POSIX srcs, `-DLUASOCKET_NODEBUG`) + cjson trio (`-DNDEBUG -fPIC`) |
 | 3 | luaTree + zip | host fennel; assemble archive-root; deterministic zip |
 | 4 | fenBinary     | fen.c + kubazip src/zip.c; link; `cat zip >> fen` |
 
@@ -44,8 +44,12 @@ scrub, `patchelf`, `remove-references-to`.
 
 ## Gotchas
 
-- fen.c needs ZERO source changes: `/proc/self/exe` falls back to absolute
-  `argv[0]`; always launch fen by absolute path on-device.
+- fen.c gets ONE build-time patch (`patches/0001-self-path-nonfatal-on-qnx.patch`),
+  applied to a throwaway working copy in stage3 — the `inputs.fen` pin stays
+  pristine. QNX has no `/proc/self/exe`, so `self_path()` returns NULL; without
+  the patch `main()` fatally `return 1`s *before* reaching the absolute-`argv[0]`
+  fallback. Always launch fen by absolute path on-device (that fallback locates
+  the appended zip).
 - The embedded zip MUST contain `fen/main.lua` + `fennel.lua` + `dkjson.lua`
   + `luarocks/` or on-device startup crashes in `rocks.prepend-tree!`.
   stage3 hard-asserts this.
