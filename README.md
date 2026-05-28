@@ -34,8 +34,10 @@ host devShell and needs no sysroot.
 ## Deploying to a device
 
 Out of scope — this repo only produces `build/fen`. Copy it to the device with
-whatever transport you use and launch it by **absolute path** (fen locates its
-appended Lua zip via `argv[0]`).
+whatever transport you use. On QNX, fen locates its appended Lua zip via
+`/proc/self/exe` when available, then via `argv[0]`: absolute paths work,
+relative paths are resolved against cwd, and bare names are resolved through
+`PATH`.
 
 TLS: bbnix's static `libcurl`/`openssl` bake `CAINFO`/`OPENSSLDIR` to
 `/accounts/1000/shared/misc/bbnix/ssl/`, where its `deploy-bundle` stages a

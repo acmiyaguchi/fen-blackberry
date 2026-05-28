@@ -6,7 +6,8 @@
 # bbndk-linux tree, e.g.  BBNIX_SYSROOT=/path/to/bbndk-linux make fen
 # Stage 3 (Lua payload) is arch-independent and runs in the pure host devShell.
 # Deploying to a device is out of scope — this only produces build/fen; copy it
-# to the device and launch it by absolute path.
+# to the device. The QNX patch lets it locate its appended zip from absolute,
+# relative, or PATH-resolved argv[0].
 #
 # The version stamp (gen-version-lua.sh) reads fen's revision from the
 # materialized deps (build/deps/VERSIONS); no local fen checkout is required.

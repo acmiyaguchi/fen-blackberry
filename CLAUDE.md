@@ -46,10 +46,11 @@ scrub, `patchelf`, `remove-references-to`.
 
 - fen.c gets ONE build-time patch (`patches/0001-self-path-nonfatal-on-qnx.patch`),
   applied to a throwaway working copy in stage3 — the `inputs.fen` pin stays
-  pristine. QNX has no `/proc/self/exe`, so `self_path()` returns NULL; without
-  the patch `main()` fatally `return 1`s *before* reaching the absolute-`argv[0]`
-  fallback. Always launch fen by absolute path on-device (that fallback locates
-  the appended zip).
+  pristine. QNX has no `/proc/self/exe`, so without the patch `main()` fatally
+  `return 1`s before trying `argv[0]`. The patch makes `self_path()` failure
+  non-fatal and resolves `argv[0]`: absolute paths work, relative paths resolve
+  against cwd, and bare names search `PATH` so packaged `root/bin/fen` can run
+  without a wrapper.
 - The embedded zip MUST contain `fen/main.lua` + `fennel.lua` + `dkjson.lua`
   + `luarocks/` or on-device startup crashes in `rocks.prepend-tree!`.
   stage3 hard-asserts this.
