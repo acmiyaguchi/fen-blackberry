@@ -14,10 +14,10 @@ toolchain (flake input `bbnix`, prefix `arm-unknown-nto-qnx8.0.0eabi-*`) in the
 `.#cross` devShell — no BBNDK FHS shell, no `qcc`. bbnix's GCC bakes
 `--with-sysroot`, so device headers/libs resolve automatically. Link model:
 **partial-static** — our code, `liblua.a`, AND the HTTPS/TLS stack (bbnix's
-from-source `libcurl` over its OpenSSL 3.x + zlib) are baked in. Only QNX
-platform libs stay dynamic (`libsocket.so.3`, `libm.so.2`, `libgcc_s.so.1`,
-`libc.so.3`), resolved on-device. This escapes the device's EOL `libcurl.so.2`
-/ OpenSSL 1.0.x.
+from-source `libcurl` over its OpenSSL 3.x + zlib), and the sysroot `libm.a`
+are baked in. Only QNX `libsocket.so.3` and `libc.so.3` stay dynamic, resolved
+on-device; Fen does not require `libgcc_s.so.1` in the device loader path. This
+escapes the device's EOL `libcurl.so.2` / OpenSSL 1.0.x.
 
 Stages 1/2/4 build `--impure` because bbnix reads `BBNIX_SYSROOT` and throws if
 it is unset:

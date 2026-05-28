@@ -28,6 +28,7 @@ OUT="$ROOT/build/fen"
 CC="${CC:-arm-unknown-nto-qnx8.0.0eabi-gcc}"
 XAR="${AR:-arm-unknown-nto-qnx8.0.0eabi-ar}"
 XRANLIB="${RANLIB:-arm-unknown-nto-qnx8.0.0eabi-ranlib}"
+XREADELF="${READELF:-arm-unknown-nto-qnx8.0.0eabi-readelf}"
 
 # QNX cross gotcha: <sys/compiler_gnu.h> predefines _GCC_SIZE_T, so a plain
 # `#include <unistd.h>` fails with "unknown type name 'size_t'" under GCC 9.
@@ -171,23 +172,6 @@ stage4() { # compile fen.c + kubazip, partial-static link, append ZIP (≙ fenBi
   qcc -D_QNX_SOURCE -I"$ROOT/build/kubazip-inc" -I"$(dirname "$KZC")" \
     -c "$KZC" -o "$OBJ/kubazip.o"
 
-  # libgcc_s.so.1 import stub. The device's prebuilt libm.so.2 (still dynamic
-  # below) imports 8 ARM-EABI runtime helpers (__aeabi_l2d, __aeabi_idiv, …)
-  # that GCC 9's static libgcc.a ALSO defines but marks HIDDEN — so ld refuses
-  # to bind a hidden local def to the DSO references ("hidden symbol … referenced
-  # by DSO" → link fails). Build a tiny link-time stub libgcc_s.so.1 exporting
-  # just those names (default visibility); the DSO refs then resolve DSO→DSO. The
-  # stub is NEVER deployed: at runtime the device's own GCC-4.8.3 libgcc_s.so.1
-  # (NEEDED via its soname) supplies the real implementations. If a new "hidden
-  # symbol referenced by DSO" appears, add the named symbol here.
-  local STUB="$ROOT/build/libgcc-stub"
-  rm -rf "$STUB"; mkdir -p "$STUB"
-  for s in __aeabi_d2lz __aeabi_idiv __aeabi_idivmod __aeabi_l2d \
-           __aeabi_ldiv0 __aeabi_ldivmod __aeabi_uidiv __aeabi_uidivmod; do
-    echo "void $s(void){}"
-  done > "$STUB/stub.c"
-  $CC -shared -nostdlib -Wl,-soname,libgcc_s.so.1 "$STUB/stub.c" -o "$STUB/libgcc_s.so.1"
-
   # Partial-static: OUR code (liblua.a + kubazip/cjson/lfs/fen objects) AND the
   # whole HTTPS/TLS stack are baked in static — bbnix's libcurl.a over its
   # OpenSSL 3.x (libssl.a/libcrypto.a) + zlib (libz.a). This escapes the
@@ -195,18 +179,34 @@ stage4() { # compile fen.c + kubazip, partial-static link, append ZIP (≙ fenBi
   # (the whole point of bbnix curl). Static-archive order is dependency order:
   # curl → ssl → crypto → z; libssl/libcrypto are wrapped in --start-group so a
   # future OpenSSL bump's provider/self-test back-edges can't break the
-  # single-pass link. QNX sockets/getaddrinfo live in libsocket.so.3 (not libc),
-  # so curl and luasocket's socket refs need a dynamic -lsocket. Only libm.so.2,
-  # libsocket.so.3, libgcc_s.so.1, and QNX libc remain dynamic (device libs).
-  # --allow-shlib-undefined defers those DSOs' transitive deps to the on-device
-  # loader.
-  $CC -O2 -Wall "$OBJ"/*.o \
-    -L"$LUA/lib" -L"$CURL/lib" -L"$OPENSSL/lib" -L"$ZLIB/lib" -L"$STUB" \
+  # single-pass link.
+  #
+  # Keep libm static too. The sysroot's dynamic libm.so.2 imports ARM-EABI
+  # helpers (__aeabi_idiv, __aeabi_l2d, …); GCC 9's static libgcc.a provides
+  # them with hidden visibility, and GNU ld refuses to satisfy DSO references
+  # from hidden executable-local symbols. Linking the sysroot's libm.a instead
+  # turns those into ordinary static-object references, so libgcc.a can satisfy
+  # them and Fen does NOT acquire a runtime libgcc_s.so.1 dependency. This
+  # matters on stock BB10 devices where libgcc_s.so.1 is not in the default
+  # loader path.
+  #
+  # QNX sockets/getaddrinfo live in libsocket.so.3 (not libc), so curl and
+  # luasocket's socket refs still need a dynamic -lsocket. Only libsocket.so.3
+  # and QNX libc remain dynamic (device libs). --allow-shlib-undefined defers
+  # those DSOs' transitive deps to the on-device loader.
+  $CC -O2 -Wall -static-libgcc "$OBJ"/*.o \
+    -L"$LUA/lib" -L"$CURL/lib" -L"$OPENSSL/lib" -L"$ZLIB/lib" \
     -Wl,-Bstatic -llua -lcurl \
-    -Wl,--start-group -lssl -lcrypto -Wl,--end-group -lz -Wl,-Bdynamic \
-    -lsocket -lm -l:libgcc_s.so.1 \
+    -Wl,--start-group -lssl -lcrypto -Wl,--end-group -lz -lm \
+    -Wl,-Bdynamic -lsocket \
     -Wl,--allow-shlib-undefined \
     -o "$OUT"
+  local needed
+  needed="$($XREADELF -d "$OUT" | grep 'NEEDED' || true)"
+  printf '%s\n' "$needed"
+  grep -F -q 'libgcc_s.so.1' <<<"$needed" && { echo "error: unexpected runtime libgcc_s.so.1 dependency" >&2; exit 1; }
+  grep -F -q 'libm.so' <<<"$needed" && { echo "error: unexpected dynamic libm dependency (should link libm.a)" >&2; exit 1; }
+
   cat "$ZIP" >> "$OUT"
   chmod +x "$OUT"
   file "$OUT"
