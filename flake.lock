@@ -6,17 +6,17 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1779860396,
-        "narHash": "sha256-jXezmyAAcwY+4dLfStP7WX37hoDHjlkRwardD3T63ok=",
+        "lastModified": 1779950733,
+        "narHash": "sha256-tv3MWgirnF84Eslbwa5g4eTntT3D8jKcShCVYetMhBY=",
         "owner": "acmiyaguchi",
         "repo": "bbnix",
-        "rev": "9a06144a50bd835f948eb95a9f2ee6f883ff02d0",
+        "rev": "d1a6c4459e5fc370cc39ea6ef7a5235031d1b7f0",
         "type": "github"
       },
       "original": {
         "owner": "acmiyaguchi",
         "repo": "bbnix",
-        "rev": "9a06144a50bd835f948eb95a9f2ee6f883ff02d0",
+        "rev": "d1a6c4459e5fc370cc39ea6ef7a5235031d1b7f0",
         "type": "github"
       }
     },
@@ -27,17 +27,17 @@
         "nixpkgs-unstable": "nixpkgs-unstable"
       },
       "locked": {
-        "lastModified": 1779780499,
-        "narHash": "sha256-QulTubAsx2L8+24RDdsCXxz6UtgXYken2zqPX8eWdJU=",
+        "lastModified": 1779950389,
+        "narHash": "sha256-MKVuw5g6dRdQwyXx3jKdz8K73XAaJn4es3UY2wX2F6I=",
         "owner": "acmiyaguchi",
         "repo": "fen",
-        "rev": "ef10ced27e214dfdf3f52952ee9346790eb4f24c",
+        "rev": "f66f8ce3f02a3f4b4bd458a7969be1072ee97de8",
         "type": "github"
       },
       "original": {
         "owner": "acmiyaguchi",
         "repo": "fen",
-        "rev": "ef10ced27e214dfdf3f52952ee9346790eb4f24c",
+        "rev": "f66f8ce3f02a3f4b4bd458a7969be1072ee97de8",
         "type": "github"
       }
     },
