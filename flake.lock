@@ -27,17 +27,17 @@
         "nixpkgs-unstable": "nixpkgs-unstable"
       },
       "locked": {
-        "lastModified": 1779950389,
-        "narHash": "sha256-MKVuw5g6dRdQwyXx3jKdz8K73XAaJn4es3UY2wX2F6I=",
+        "lastModified": 1780037753,
+        "narHash": "sha256-ow0oFig2zt/3s5PN8t+TUL4rttZsz+Tki47u1Wbce44=",
         "owner": "acmiyaguchi",
         "repo": "fen",
-        "rev": "f66f8ce3f02a3f4b4bd458a7969be1072ee97de8",
+        "rev": "dc59ab4335377fec5406953ae4060e24b49feb63",
         "type": "github"
       },
       "original": {
         "owner": "acmiyaguchi",
+        "ref": "v0.7.2",
         "repo": "fen",
-        "rev": "f66f8ce3f02a3f4b4bd458a7969be1072ee97de8",
         "type": "github"
       }
     },
